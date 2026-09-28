@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AquaRuta · Listas doblemente enlazadas</title>
+  <meta name="description" content="Red de acueducto municipal modelada con listas doblemente enlazadas: recorrido aguas arriba y aguas abajo, inserción y eliminación en ambos extremos." />
+  <meta name="color-scheme" content="light" />
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+  <link rel="stylesheet" href="styles/animations.css" />
+</head>
+<body>
+  <!-- Atmosphere: soft water washes + perspective rail (parallax layers) -->
+  <div class="atmosphere" aria-hidden="true">
+    <span class="wash wash-a" data-depth="6"></span>
+    <span class="wash wash-b" data-depth="10"></span>
+    <span class="wash wash-c" data-depth="4"></span>
+    <span class="wash-grid" data-depth="2"></span>
+  </div>
+
+  <a class="skip-link" href="#conducto">Saltar al conducto</a>
+
+  <header class="topbar glass">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M12 3.2c3.2 3.6 5.4 6.3 5.4 8.9A5.4 5.4 0 0 1 12 17.5a5.4 5.4 0 0 1-5.4-5.4c0-2.6 2.2-5.3 5.4-8.9Z" />
+          <path d="M3 20.5h18" />
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong>AquaRuta</strong>
+        <small>Red de acueducto</small>
+      </span>
+    </div>
+
+    <nav class="topnav" aria-label="Secciones">
+      <a href="#conducto">Conducto</a>
+      <a href="#operaciones">Operaciones</a>
+    </nav>
+
+    <div class="status-pill" id="statusPill" data-state="connecting">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="statusText">Conectando…</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============================ HERO ============================ -->
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Estructuras de datos · Caso de estudio</p>
+        <h1>El conducto principal del acueducto, modelado con <span class="hl">listas doblemente enlazadas</span></h1>
+        <p class="lede">
+          Cada cámara de válvulas es un nodo. El operador recorre el conducto
+          <strong>aguas arriba</strong> y <strong>aguas abajo</strong>, abre o cierra válvulas,
+          y agrega cámaras por cualquiera de los dos extremos sin recorrer toda la lista.
+        </p>
+
+        <div class="hero-cta">
+          <button class="btn btn-primary press" data-scroll="#conducto">Ver el conducto</button>
+          <button class="btn press" data-action="demo-upstream">Recorrer aguas arriba</button>
+        </div>
+
+        <dl class="metrics reveal">
+          <div class="metric">
+            <dt>Cámaras</dt>
+            <dd id="statSize">—</dd>
+          </div>
+          <div class="metric">
+            <dt>Abiertas</dt>
+            <dd id="statOpen">—</dd>
+          </div>
+          <div class="metric">
+            <dt>Cerradas</dt>
+            <dd id="statClosed">—</dd>
+          </div>
+          <div class="metric">
+            <dt>Desnivel</dt>
+            <dd id="statDrop">—</dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Spatial scene: floating pointer cards, front = active chamber -->
+      <div class="scene" id="scene">
+        <p class="scene-caption">Punteros <code>prev</code> y <code>next</code> en vivo</p>
+
+        <div class="float-card fc-upstream" data-float="0.85" data-amp="9" data-depth="26" data-tilt="70">
+          <p class="fc-label"><span aria-hidden="true">◀</span> Aguas arriba · prev</p>
+          <p class="fc-value" id="fcPrev">—</p>
+          <p class="fc-meta" id="fcPrevMeta">O(1) un salto</p>
+        </div>
+
+        <div class="float-card fc-current" data-float="1.15" data-amp="12" data-depth="66" data-tilt="100">
+          <p class="fc-label"><span aria-hidden="true">◉</span> Operador</p>
+          <p class="fc-value" id="fcCurrent">—</p>
+          <p class="fc-meta" id="fcCurrentMeta">—</p>
+        </div>
+
+        <div class="float-card fc-downstream" data-float="0.7" data-amp="8" data-depth="26" data-tilt="70">
+          <p class="fc-label">Aguas abajo · next <span aria-hidden="true">▶</span></p>
+          <p class="fc-value" id="fcNext">—</p>
+          <p class="fc-meta" id="fcNextMeta">O(1) un salto</p>
+        </div>
+
+        <div class="scene-pipe" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- ========================== TRUNK MAIN ========================= -->
+    <section id="conducto" class="section reveal">
+      <header class="section-head">
+        <div class="section-head-text">
+          <h2>El conducto</h2>
+          <p>Recorre la lista de <code>head</code> a <code>tail</code> o al revés, gracias a los punteros <code>prev</code>.</p>
+        </div>
+
+        <div class="head-tools">
+          <div class="segmented" role="group" aria-label="Sentido de recorrido">
+            <button type="button" class="seg-btn is-selected" data-direction="forward" aria-pressed="true">Aguas arriba</button>
+            <button type="button" class="seg-btn" data-direction="backward" aria-pressed="false">Aguas abajo</button>
+          </div>
+          <div class="operator-pad">
+            <button class="btn btn-round press" id="btnUpstream" title="Subir aguas arriba" aria-label="Mover aguas arriba">▲</button>
+            <button class="btn btn-round press" id="btnDownstream" title="Bajar aguas abajo" aria-label="Mover aguas abajo">▼</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="corridor" id="corridor" role="list" aria-label="Cámaras del conducto"></div>
+      <p class="empty" id="emptyNote" hidden>El conducto está vacío. Agrega la primera cámara de válvulas. 🛠️</p>
+    </section>
+
+    <!-- ========================= OPERATIONS ========================== -->
+    <section id="operaciones" class="section">
+      <div class="panels">
+        <div class="panel glass reveal">
+          <h3>Añadir cámara</h3>
+          <form id="addForm" novalidate>
+            <label class="field">
+              <span>Nombre de la cámara</span>
+              <input id="inputName" name="name" type="text" maxlength="42" placeholder="Ej. Cámara de Purga Norte" required />
+            </label>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Cota (m s. n. m.)</span>
+                <input id="inputElevation" name="elevation" type="number" value="3100" step="5" />
+              </label>
+              <label class="field">
+                <span>Estado inicial</span>
+                <select id="inputStatus">
+                  <option value="Abierta">Abierta</option>
+                  <option value="Cerrada">Cerrada</option>
+                </select>
+              </label>
+            </div>
+
+            <fieldset class="field">
+              <legend>Modo de inserción</legend>
+              <div class="segmented segmented-wrap" role="group" aria-label="Modo de inserción">
+                <button type="button" class="seg-btn is-selected" data-mode="last" aria-pressed="true">Al final</button>
+                <button type="button" class="seg-btn" data-mode="first" aria-pressed="false">Al inicio</button>
+                <button type="button" class="seg-btn" data-mode="at" aria-pressed="false">En posición</button>
+                <button type="button" class="seg-btn" data-mode="after" aria-pressed="false">Después de…</button>
+              </div>
+            </fieldset>
+
+            <div class="field-row" id="modeInputs" hidden>
+              <label class="field" id="positionField" hidden>
+                <span>Posición</span>
+                <input id="inputPosition" type="number" min="0" value="0" />
+              </label>
+              <label class="field" id="afterField" hidden>
+                <span>ID de referencia</span>
+                <input id="inputAfterId" type="number" min="1" placeholder="Ej. 3" />
+              </label>
+            </div>
+
+            <button class="btn btn-primary btn-block press" type="submit">Añadir al conducto</button>
+          </form>
+        </div>
+
+        <div class="panel glass reveal">
+          <h3>Buscar y revisar</h3>
+          <label class="field">
+            <span>Buscar por nombre</span>
+            <span class="search">
+              <input id="searchInput" type="search" placeholder="Ej. cámara" />
+              <button class="btn btn-compact press" id="btnSearch" type="button">Buscar</button>
+            </span>
+          </label>
+          <ul class="results" id="searchResults" aria-live="polite"></ul>
+
+          <hr class="rule" />
+
+          <h3>Eliminar del conducto</h3>
+          <div class="chip-row">
+            <button class="btn btn-compact press btn-quiet" id="btnRemoveFirst" type="button">Quitar cámara de admisión</button>
+            <button class="btn btn-compact press btn-quiet" id="btnRemoveLast" type="button">Quitar cámara de descarga</button>
+          </div>
+          <label class="field">
+            <span>Quitar por ID</span>
+            <span class="search">
+              <input id="removeIdInput" type="number" min="1" placeholder="Ej. 4" />
+              <button class="btn btn-compact press btn-danger" id="btnRemoveById" type="button">Quitar</button>
+            </span>
+          </label>
+
+          <hr class="rule" />
+
+          <h3>Reiniciar</h3>
+          <div class="chip-row">
+            <button class="btn btn-compact press" id="btnReset" type="button">Cargar conducto de demostración</button>
+            <button class="btn btn-compact press btn-quiet" id="btnClear" type="button">Vaciar conducto</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>AquaRuta · Listas doblemente enlazadas</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

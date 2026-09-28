@@ -1,0 +1,89 @@
+/* Motion layer.
+   Apple skill: CSS-first animation, scroll-driven reveals when supported,
+   no decoration-only motion, full reduced-motion support.
+   Spatial skill: float formula in JS (see app.js), keyframes reserved for
+   state feedback only. */
+
+/* ---------- scroll driven reveal ---------- */
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: reveal-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 32%;
+  }
+}
+
+/* fallback for browsers without scroll-driven animations */
+.js-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity var(--dur-large) var(--ease-out),
+    transform var(--dur-large) var(--ease-out);
+}
+
+.js-reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- state feedback ---------- */
+@keyframes flow-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+  60% {
+    box-shadow: 0 0 0 8px rgba(0, 113, 227, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 113, 227, 0);
+  }
+}
+
+.chamber.is-moved {
+  animation: flow-pulse var(--dur-large) var(--ease-out);
+}
+
+@keyframes spin-once {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-pill[data-state="online"] .status-dot {
+  animation: spin-once 1.4s var(--ease-inout);
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .js-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
